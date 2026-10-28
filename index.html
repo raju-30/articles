@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Article Tracker</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Appwrite SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/appwrite@14.0.1"></script>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="app-title-group">
+        <h1>Article Tracker</h1>
+      </div>
+      <div class="header-actions">
+        <button id="openProfileBtn" class="btn btn-profile" title="User Profile & Link Management">
+          <span class="profile-avatar-circle" id="headerAvatarCircle">UC</span>
+          <span class="profile-btn-name" id="headerProfileName">Uma Chandra</span>
+        </button>
+        <button id="openAddModalBtn" class="btn btn-primary" title="Add New Article">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Add Article
+        </button>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="tabs-nav">
+      <button class="tab-btn active" id="tabOngoing" data-tab="ongoing">
+        Ongoing Articles
+        <span class="tab-badge" id="ongoingCount">0</span>
+      </button>
+      <button class="tab-btn" id="tabHistory" data-tab="history">
+        Reading History
+        <span class="tab-badge" id="historyCount">0</span>
+      </button>
+    </nav>
+
+    <!-- Ongoing Articles View -->
+    <section id="ongoingSection" class="tab-content">
+      <div id="ongoingList" class="articles-list">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- History View -->
+    <section id="historySection" class="tab-content" style="display: none;">
+      <div id="historyList" class="articles-list">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+  </div>
+
+  <!-- Add Article Modal Popup -->
+  <div id="addModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Add New Article</h2>
+        <button id="closeAddModalBtn" class="btn-close" type="button">&times;</button>
+      </div>
+      <form id="addArticleForm">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="articleTitle">Article Name / Title</label>
+            <input type="text" id="articleTitle" class="input-text" placeholder="e.g. Understanding Event Loops in JS" required autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="articleUrl">Article Link / URL</label>
+            <input type="url" id="articleUrl" class="input-text" placeholder="https://example.com/article" required autocomplete="off">
+          </div>
+          <div class="form-group">
+            <span class="status-selection-label">Initial Status</span>
+            <div class="status-radio-group">
+              <label class="radio-label">
+                <input type="radio" name="initialStatus" value="ongoing" checked>
+                <span>Ongoing</span>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="initialStatus" value="completed">
+                <span>Completed</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" id="cancelAddBtn" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveArticleBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Save Article
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- User Profile & Link Management Modal -->
+  <div id="profileModal" class="modal-overlay">
+    <div class="modal-content modal-content-lg">
+      <div class="modal-header">
+        <div class="profile-header-title">
+          <h2>User Profile</h2>
+          <span class="profile-badge-pill">Personal Workspace</span>
+        </div>
+        <button id="closeProfileBtn" class="btn-close" type="button">&times;</button>
+      </div>
+
+      <div class="modal-body profile-modal-body">
+        <!-- Profile Info Card -->
+        <div class="profile-card">
+          <div class="profile-identity">
+            <div class="profile-avatar-simple" id="modalAvatarCircle">UC</div>
+            <div class="profile-text-info">
+              <div class="profile-name-row">
+                <h3 id="profileDisplayName">Uma Chandra</h3>
+                <button type="button" id="editNameBtn" class="btn-icon-subtle" title="Edit Name">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                </button>
+              </div>
+              
+              <div id="editNameGroup" class="edit-name-group" style="display: none;">
+                <input type="text" id="profileNameInput" class="input-text" value="Uma Chandra" maxlength="50" placeholder="Enter full name">
+                <button type="button" id="saveNameBtn" class="btn btn-primary btn-sm">Save</button>
+                <button type="button" id="cancelNameBtn" class="btn btn-secondary btn-sm">Cancel</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stats Grid -->
+          <div class="profile-stats-grid">
+            <div class="stat-card">
+              <span class="stat-val" id="statTotalLinks">0</span>
+              <span class="stat-lbl">Total Links</span>
+            </div>
+            <div class="stat-card ongoing">
+              <span class="stat-val" id="statOngoingLinks">0</span>
+              <span class="stat-lbl">Ongoing</span>
+            </div>
+            <div class="stat-card completed">
+              <span class="stat-val" id="statCompletedLinks">0</span>
+              <span class="stat-lbl">Completed</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Links Management & Delete Options Section -->
+        <div class="profile-manage-section">
+          <div class="manage-section-header">
+            <div>
+              <h3 class="manage-section-title">Link Delete &amp; Management</h3>
+            </div>
+            <div class="manage-actions-group">
+              <button type="button" id="deleteSelectedBtn" class="btn btn-danger-sm" disabled title="Delete selected links">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+                <span>Delete Selected (<span id="selectedCountText">0</span>)</span>
+              </button>
+
+              <div class="dropdown-wrapper">
+                <button type="button" id="moreDeleteOptionsBtn" class="btn btn-secondary btn-sm">
+                  <span>Batch Delete</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
+                <div id="moreDeleteMenu" class="more-delete-menu" style="display: none;">
+                  <button type="button" class="menu-item-danger" id="deleteAllOngoingBtn">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+                    </svg>
+                    Delete All Ongoing Links
+                  </button>
+                  <button type="button" class="menu-item-danger" id="deleteAllCompletedBtn">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+                    </svg>
+                    Delete All Completed Links
+                  </button>
+                  <hr class="menu-divider">
+                  <button type="button" class="menu-item-danger-strong" id="deleteAllLinksBtn">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                    Delete All Links
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filter & Search Controls inside Profile -->
+          <div class="profile-toolbar">
+            <div class="search-input-wrap">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input type="text" id="profileSearchInput" class="input-text input-search-profile" placeholder="Search links to delete...">
+            </div>
+            <div class="toolbar-filter-group">
+              <select id="profileStatusFilter" class="select-filter">
+                <option value="all">All Statuses</option>
+                <option value="ongoing">Ongoing Only</option>
+                <option value="completed">Completed Only</option>
+              </select>
+              <label class="select-all-label">
+                <input type="checkbox" id="selectAllCheckbox">
+                <span>Select All</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Links Table List in Profile -->
+          <div id="profileLinksList" class="profile-links-list">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" id="closeProfileFooterBtn" class="btn btn-secondary">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Link Action Popup Modal -->
+  <div id="linkActionModal" class="modal-overlay">
+    <div class="modal-content modal-content-sm">
+      <div class="modal-header">
+        <h2 id="linkActionTitle" class="link-modal-heading">Link Options</h2>
+        <button id="closeLinkActionBtn" class="btn-close" type="button">&times;</button>
+      </div>
+      <div class="modal-body link-action-body">
+        <div class="link-info-preview">
+          <h3 id="modalArticleTitle" class="link-preview-title"></h3>
+          <p id="modalArticleUrl" class="link-preview-url"></p>
+        </div>
+
+        <div class="link-action-buttons-grid">
+          <button type="button" id="modalOpenBtn" class="btn btn-action-card">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+            <span class="btn-action-label">Open Link</span>
+          </button>
+          <button type="button" id="modalCopyBtn" class="btn btn-action-card">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <span id="modalCopyBtnText" class="btn-action-label">Copy Link</span>
+          </button>
+        </div>
+
+        <div class="link-status-group">
+          <span class="status-selection-label">Status</span>
+          <div class="status-toggle-buttons">
+            <button type="button" id="statusOngoingBtn" class="btn-status-option">
+              <span class="status-dot ongoing"></span>
+              Ongoing
+            </button>
+            <button type="button" id="statusCompletedBtn" class="btn-status-option">
+              <span class="status-dot completed"></span>
+              Completed
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Confirmation Dialog Modal -->
+  <div id="customConfirmModal" class="modal-overlay custom-confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="customConfirmTitle">
+    <div class="modal-content confirm-modal-card">
+      <div class="confirm-modal-header">
+        <div class="confirm-icon-badge" id="confirmIconBadge">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            <line x1="10" y1="11" x2="10" y2="17"></line>
+            <line x1="14" y1="11" x2="14" y2="17"></line>
+          </svg>
+        </div>
+        <div class="confirm-header-text">
+          <h3 id="customConfirmTitle" class="confirm-title">Delete Link</h3>
+          <p id="customConfirmMessage" class="confirm-message">Are you sure you want to delete this link?</p>
+        </div>
+      </div>
+      <div class="confirm-modal-footer">
+        <button type="button" id="customConfirmCancelBtn" class="btn btn-secondary">Cancel</button>
+        <button type="button" id="customConfirmOkBtn" class="btn btn-danger-action">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <script src="env.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
