@@ -137,8 +137,36 @@ function showToast(message, type = 'info', duration = 3200) {
   }, duration);
 }
 
+// Detect if running from direct file protocol and show warning
+function checkProtocolWarning() {
+  if (window.location.protocol === 'file:') {
+    const banner = document.createElement('div');
+    banner.className = 'protocol-warning-banner';
+    banner.innerHTML = `
+      <div class="protocol-warning-content">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0;">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <span>
+          <strong>Viewing as local file (file://):</strong> Appwrite Cloud blocks requests from direct <code>file://</code> URLs due to browser security policies.
+          Please open this app through your local web server: <a href="http://localhost:5500" target="_blank" style="color: inherit; text-decoration: underline; font-weight: 600;">http://localhost:5500</a>
+        </span>
+      </div>
+    `;
+    const container = document.querySelector('.container');
+    if (container) {
+      container.insertBefore(banner, container.firstChild);
+    } else {
+      document.body.prepend(banner);
+    }
+  }
+}
+
 // --- Initialization ---
 async function init() {
+  checkProtocolWarning();
   await loadConfig();
   updateProfileDisplay();
   setupEventListeners();
@@ -663,7 +691,19 @@ async function loadArticles() {
       }));
     } catch (err) {
       console.error('Error fetching articles from Appwrite:', err);
-      showToast('Error loading from Appwrite. Check permissions & table schema.', 'error');
+      let errorMsg = 'Error loading from Appwrite: ' + (err.message || 'Check permissions & table schema.');
+      
+      if (window.location.protocol === 'file:') {
+        errorMsg = 'Cannot connect to Appwrite from file:// URL. Please open via http://localhost:5500 (Live Server).';
+      } else if (err.code === 403 || err.type === 'general_unknown_origin') {
+        errorMsg = `Appwrite 403 (Invalid Origin): Register '${window.location.origin}' under Platforms in your Appwrite console.`;
+      } else if (err.code === 401) {
+        errorMsg = 'Appwrite 401: Unauthorized. Please check Project ID or Database collection permissions.';
+      } else if (err.code === 404) {
+        errorMsg = 'Appwrite 404: Database or Collection ID not found.';
+      }
+      
+      showToast(errorMsg, 'error', 6000);
       loadLocalFallback();
     }
   } else {
