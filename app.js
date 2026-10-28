@@ -671,6 +671,37 @@ function switchTab(tab) {
 
 // --- Data Operations (Appwrite & Local Storage Fallback) ---
 
+// Helper to provide human-readable, actionable error messages for Appwrite failures
+function formatAppwriteErrorMessage(err, fallback = 'Operation failed') {
+  if (!err) return fallback;
+
+  const msg = err.message || '';
+  
+  // Browsers throw "Failed to fetch" on CORS preflight/origin failures
+  if (msg === 'Failed to fetch' || err.name === 'TypeError') {
+    if (window.location.protocol === 'file:') {
+      return 'Cannot connect to Appwrite from file:// URL. Please open via http://localhost:5500.';
+    }
+    const currentHost = window.location.hostname || 'your domain';
+    return `CORS blocked (Failed to fetch): Add "${currentHost}" as a Web Platform in your Appwrite Console (Settings > Platforms).`;
+  }
+
+  if (err.code === 403 || err.type === 'general_unknown_origin' || msg.toLowerCase().includes('invalid origin')) {
+    const currentHost = window.location.hostname || 'your domain';
+    return `Appwrite 403 (Invalid Origin): Register "${currentHost}" under Platforms in Appwrite Console.`;
+  }
+
+  if (err.code === 401 || err.type === 'user_unauthorized') {
+    return 'Appwrite 401: Unauthorized. Check Project ID or Collection permissions.';
+  }
+
+  if (err.code === 404 || err.type === 'database_not_found' || err.type === 'collection_not_found') {
+    return 'Appwrite 404: Database or Collection ID not found.';
+  }
+
+  return msg || fallback;
+}
+
 // Load articles
 async function loadArticles() {
   if (isAppwriteReady) {
@@ -691,19 +722,8 @@ async function loadArticles() {
       }));
     } catch (err) {
       console.error('Error fetching articles from Appwrite:', err);
-      let errorMsg = 'Error loading from Appwrite: ' + (err.message || 'Check permissions & table schema.');
-      
-      if (window.location.protocol === 'file:') {
-        errorMsg = 'Cannot connect to Appwrite from file:// URL. Please open via http://localhost:5500 (Live Server).';
-      } else if (err.code === 403 || err.type === 'general_unknown_origin') {
-        errorMsg = `Appwrite 403 (Invalid Origin): Register '${window.location.origin}' under Platforms in your Appwrite console.`;
-      } else if (err.code === 401) {
-        errorMsg = 'Appwrite 401: Unauthorized. Please check Project ID or Database collection permissions.';
-      } else if (err.code === 404) {
-        errorMsg = 'Appwrite 404: Database or Collection ID not found.';
-      }
-      
-      showToast(errorMsg, 'error', 6000);
+      const errorMsg = formatAppwriteErrorMessage(err, 'Check permissions & table schema.');
+      showToast(errorMsg, 'error', 7000);
       loadLocalFallback();
     }
   } else {
@@ -797,7 +817,8 @@ async function handleAddArticle(e) {
       });
     } catch (err) {
       console.error('Appwrite createDocument error:', err);
-      showToast('Failed to save to Appwrite: ' + (err.message || 'Check database permissions'), 'error');
+      const errMsg = formatAppwriteErrorMessage(err, 'Check database permissions');
+      showToast('Failed to save to Appwrite: ' + errMsg, 'error', 7000);
       saveBtn.disabled = false;
       saveBtn.innerHTML = 'Save Article';
       return;
@@ -872,7 +893,8 @@ async function updateArticleStatus(id, newStatus) {
       article.status = prevStatus;
       article.completed_at = prevCompletedAt;
       renderArticles();
-      showToast('Failed to update in Appwrite: ' + err.message, 'error');
+      const errMsg = formatAppwriteErrorMessage(err, 'Failed to update article');
+      showToast('Failed to update in Appwrite: ' + errMsg, 'error', 7000);
     }
   } else {
     saveLocalFallback();
